@@ -4646,15 +4646,29 @@ const BackgroundCommands = {
     return selectTab("last", request);
   },
   async removeTab({ count, tab }) {
-    await forCountTabs(count, tab, (tab) => {
+    // Save closed tab info for Safari restore (chrome.sessions.restore may not work).
+    await forCountTabs(count, tab, async (tab) => {
       // In Firefox, Ctrl-W will not close a pinned tab, but on Chrome, it will. We try to be
       // consistent with each browser's UX for pinned tabs.
       if (tab.pinned && bgUtils.isFirefox()) return;
+      if (bgUtils.isSafari()) {
+        await saveClosedTabForRestore(tab);
+      }
       chrome.tabs.remove(tab.id);
     });
   },
   restoreTab: createRepeatCommand(async (request) => {
-    await chrome.sessions.restore(null);
+    if (bgUtils.isSafari()) {
+      const restored = await restoreRecentlyClosedTab(request);
+      if (!restored) {
+        // Fall back to native API if our stack is empty.
+        if (chrome.sessions?.restore) {
+          await chrome.sessions.restore(null);
+        }
+      }
+    } else {
+      await chrome.sessions.restore(null);
+    }
   }),
   async togglePinTab({ count, tab }) {
     await forCountTabs(count, tab, (tab) => {
@@ -4748,6 +4762,45 @@ const BackgroundCommands = {
     });
   },
 };
+
+// ---- Safari closed-tab tracking ----
+// Safari does not support chrome.sessions.restore, so we track closed tabs ourselves.
+const CLOSED_TABS_KEY = "vimfariClosedTabs";
+const MAX_CLOSED_TABS = 25; // Match chrome.sessions.MAX_SESSION_RESULTS
+
+async function getClosedTabsStack() {
+  const result = await chrome.storage.session.get(CLOSED_TABS_KEY);
+  return result[CLOSED_TABS_KEY] || [];
+}
+
+async function saveClosedTabForRestore(tab) {
+  const stack = await getClosedTabsStack();
+  stack.push({
+    url: tab.url,
+    title: tab.title,
+    windowId: tab.windowId,
+    index: tab.index,
+  });
+  // Keep only the most recent MAX_CLOSED_TABS
+  while (stack.length > MAX_CLOSED_TABS) stack.shift();
+  await chrome.storage.session.set({ [CLOSED_TABS_KEY]: stack });
+}
+
+async function restoreRecentlyClosedTab(request) {
+  const stack = await getClosedTabsStack();
+  if (stack.length === 0) return false;
+
+  const entry = stack.pop();
+  await chrome.storage.session.set({ [CLOSED_TABS_KEY]: stack });
+
+  // Open the URL in a new tab
+  const tab = await chrome.tabs.create({
+    url: entry.url,
+    windowId: entry.windowId,
+    active: true,
+  });
+  return !!tab;
+}
 
 async function forCountTabs(count, currentTab, callback) {
   const tabs = await chrome.tabs.query(visibleTabsQueryArgs);
