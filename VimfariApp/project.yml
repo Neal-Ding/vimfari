@@ -1,0 +1,53 @@
+# XcodeGen project specification for Vimfari
+# Install XcodeGen: brew install xcodegen
+# Then run: cd VimfariApp && xcodegen generate
+name: VimfariApp
+options:
+  bundleIdPrefix: com.vimfari
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: 1
+
+targets:
+  VimfariApp:
+    type: application
+    platform: macOS
+    sources:
+      - VimfariApp
+    settings:
+      base:
+        INFOPLIST_FILE: VimfariApp/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.vimfari.VimfariApp
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: SafariExtension
+    preBuildScripts:
+      - name: Copy Web Extension Resources
+        script: |
+          # Copy the web extension files into the SafariExtension Resources directory
+          rm -rf "${SRCROOT}/SafariExtension/Resources/"*
+          cp -R "${SRCROOT}/../"*.json "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../lib" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../content_scripts" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../background_scripts" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../pages" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../icons" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+          cp -R "${SRCROOT}/../resources" "${SRCROOT}/SafariExtension/Resources/" 2>/dev/null || true
+        basedOnDependencyAnalysis: false
+
+  SafariExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - SafariExtension
+    settings:
+      base:
+        INFOPLIST_FILE: SafariExtension/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.vimfari.SafariExtension
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
