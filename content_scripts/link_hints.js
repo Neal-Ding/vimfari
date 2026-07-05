@@ -79,16 +79,52 @@ const OPEN_IN_NEW_BG_TAB = {
   name: "bg-tab",
   indicator: "Open link in new tab",
   clickModifiers: { metaKey: isMac, ctrlKey: !isMac },
+  linkActivator(link) {
+    // Safari doesn't respect metaKey on synthetic click events.
+    // Use direct message passing which is more reliable across all browsers.
+    if (link.href != null) {
+      chrome.runtime.sendMessage({
+        handler: "openUrlInNewTab",
+        url: link.href,
+        active: false,
+      });
+    } else {
+      // Non-anchor element (button, etc.) — fall back to click simulation.
+      DomUtils.simulateClick(link, { metaKey: isMac, ctrlKey: !isMac });
+    }
+  },
 };
 const OPEN_IN_NEW_FG_TAB = {
   name: "fg-tab",
   indicator: "Open link in new tab and switch to it",
   clickModifiers: { shiftKey: true, metaKey: isMac, ctrlKey: !isMac },
+  linkActivator(link) {
+    if (link.href != null) {
+      chrome.runtime.sendMessage({
+        handler: "openUrlInNewTab",
+        url: link.href,
+        active: true,
+      });
+    } else {
+      DomUtils.simulateClick(link, { shiftKey: true, metaKey: isMac, ctrlKey: !isMac });
+    }
+  },
 };
 const OPEN_WITH_QUEUE = {
   name: "queue",
   indicator: "Open multiple links in new tabs",
   clickModifiers: { metaKey: isMac, ctrlKey: !isMac },
+  linkActivator(link) {
+    if (link.href != null) {
+      chrome.runtime.sendMessage({
+        handler: "openUrlInNewTab",
+        url: link.href,
+        active: false,
+      });
+    } else {
+      DomUtils.simulateClick(link, { metaKey: isMac, ctrlKey: !isMac });
+    }
+  },
 };
 const COPY_LINK_URL = {
   name: "link",

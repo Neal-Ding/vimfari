@@ -67,7 +67,11 @@ const performScroll = function (element, direction, amount) {
   const axisName = scrollProperties[direction].axisName;
   const before = element[axisName];
   if (element.scrollBy) {
-    const scrollArg = { behavior: "instant" };
+    // Use "auto" instead of "instant" for Safari compatibility.
+    // Safari 16+ supports "instant" but "auto" is universally supported and
+    // has the same effect (immediate scroll) when the page doesn't set
+    // scroll-behavior: smooth in CSS (which is rare).
+    const scrollArg = { behavior: "auto" };
     scrollArg[direction === "x" ? "left" : "top"] = amount;
     element.scrollBy(scrollArg);
   } else {

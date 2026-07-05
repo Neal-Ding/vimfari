@@ -4580,7 +4580,9 @@ const BackgroundCommands = {
           const destination = Settings.get("newTabDestination");
           const customUrl = Settings.get("newTabCustomUrl");
           if (destination == Settings.newTabDestinations.vimiumNewTabPage) {
-            url = Settings.vimiumNewTabPageUrl;
+            // Safari: the Vimium new-tab page doesn't work in Safari; open a real blank tab.
+            // Chrome: about:newtab is filtered out in tab_operations.js → opens browser new tab.
+            url = (bgUtils.isSafari()) ? UrlUtils.chromeNewTabUrl : Settings.vimiumNewTabPageUrl;
           } else if (destination == Settings.newTabDestinations.customUrl && customUrl.length > 0) {
             url = customUrl;
           } else {
