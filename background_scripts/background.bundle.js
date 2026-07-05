@@ -4521,6 +4521,14 @@ function moveTab({ count, tab, registryEntry }) {
   if (registryEntry.command === "moveTabLeft") {
     count = -count;
   }
+  // Safari does not support chrome.tabs.move.
+  if (bgUtils.isSafari()) {
+    chrome.tabs.sendMessage(tab.id, {
+      handler: "showMessage",
+      message: "Tab movement is not supported in Safari.",
+    });
+    return;
+  }
   return chrome.tabs.query(visibleTabsQueryArgs, function (tabs) {
     const pinnedCount = (tabs.filter((tab) => tab.pinned)).length;
     const minIndex = tab.pinned ? 0 : pinnedCount;
@@ -4646,8 +4654,16 @@ const BackgroundCommands = {
       const activeTabIndex = getTabIndex(tab, tabs);
       const startTabIndex = Math.max(0, Math.min(activeTabIndex, tabs.length - count));
       [tab, ...tabs] = tabs.slice(startTabIndex, startTabIndex + count);
-      chrome.windows.create({ tabId: tab.id, incognito: tab.incognito }, function (window) {
-        chrome.tabs.move(tabs.map((t) => t.id), { windowId: window.id, index: -1 });
+      const windowConfig = { tabId: tab.id };
+      // Safari: strip incognito (not supported) and skip tabs.move (not supported).
+      if (!bgUtils.isSafari()) {
+        windowConfig.incognito = tab.incognito;
+      }
+      chrome.windows.create(windowConfig, function (window) {
+        // Safari does not support chrome.tabs.move; skip moving additional tabs.
+        if (!bgUtils.isSafari()) {
+          chrome.tabs.move(tabs.map((t) => t.id), { windowId: window.id, index: -1 });
+        }
       });
     });
   },

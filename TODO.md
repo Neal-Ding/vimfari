@@ -15,8 +15,10 @@ This file tracks known limitations, Safari-specific gaps, and planned improvemen
 
 ### Tab Operations
 - [ ] **`chrome.tabs.create` ignores `position` argument** — Safari places new tabs according to its own logic. The `position` options in key mappings (`start`, `before`, `after`, `end`) have no effect. Consider removing or documenting this.
+- [x] **`chrome.tabs.move` not supported** — All tab movement operations (`<<`, `>>`, `W`) are disabled on Safari with a HUD message. Per Apple docs: `tabs.move` is not available in Safari Web Extensions.
 - [ ] **`chrome.tabs.duplicate` behavior may differ** — Verify tab duplication works as expected in Safari.
 - [ ] **Pinned tab behavior** — Safari may handle pinned tabs differently from Chrome/Firefox. The `removeTab` command currently skips pinned tabs only on Firefox; verify whether Safari needs the same treatment.
+- [x] **`data:text/html` URL in `chrome.tabs.create` not supported** — Uses `null` URL (same as Firefox path).
 
 ### Web Navigation
 - [ ] **`chrome.webNavigation` events may be reduced** — Safari's implementation may fire fewer events or have different timing. The `onHistoryStateUpdated`, `onReferenceFragmentUpdated`, and `onCommitted` listeners are guarded with try/catch, but may silently not fire, affecting URL-change detection and link-hint CSS injection.
@@ -35,9 +37,6 @@ This file tracks known limitations, Safari-specific gaps, and planned improvemen
 
 ### Favicons
 - [x] **`_favicon/*` not available in Safari** — Vomnibar tab suggestions skip favicon rendering (no favicon API).
-
-### Tab Operations
-- [x] **`data:text/html` URL in `chrome.tabs.create` not supported in Safari** — Uses `null` URL (same as Firefox path).
 
 ### Permissions
 - [ ] **`sessions` permission** — Verify support in Safari 16.4+. May need to be made optional.
