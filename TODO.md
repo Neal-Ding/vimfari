@@ -44,6 +44,33 @@ This file tracks known limitations, Safari-specific gaps, and planned improvemen
 
 ---
 
+## Safari Native Bridge (Implemented)
+
+- [x] **`content_scripts/native_bridge.js`** — JS↔Swift communication layer
+  - Detects `safari.extension.dispatchMessage` availability
+  - `NativeBridge.send(command, data)` → dispatches to Swift handler
+  - Receives `navigateTo` events from native handler
+  - Non-Safari: gracefully degrades (`available: false`)
+
+- [x] **`SafariWebExtensionHandler.swift`** — Native tab command handler
+  - Supports: nextTab, previousTab, firstTab, lastTab, createTab,
+    duplicateTab, removeTab, restoreTab (with Swift-side closed-tab stack),
+    closeTabsOnLeft/Right/Other, moveTabToNewWindow,
+    openUrlInNewTab, openUrlInCurrentTab
+  - Uses SFSafariWindow.getAllTabs(), SFSafariTab.activate(), .close()
+  - Falls back to SFSafariApplication.getActiveWindow for pinned tabs
+
+- [x] **`mode_normal.js`** — Routes background commands through NativeBridge
+  - `isNativeTabCommand()` whitelist gates which commands use native path
+  - Non-Safari or non-whitelisted commands: fall through to chrome.runtime.sendMessage
+
+### Native Bridge — Future Improvements
+- [ ] Extend to handle URL opening (openUrlInNewTab, openUrlInCurrentTab)
+      for better performance without service worker round-trip
+- [ ] Support Vomnibar tab completion via native SFSafariWindow.getAllTabs()
+- [ ] Add native-side tab event listeners (onTabAdded/Removed) for smarter
+      closed-tab restoration
+
 ## App Store Distribution Checklist
 
 - [ ] **Add toolbar icons to Xcode Asset Catalog** — Currently referenced as PNG files in manifest.json. Apple requires Asset Catalog entries for App Store submission.

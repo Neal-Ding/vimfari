@@ -1,3 +1,17 @@
+// Commands that can be handled natively by Safari's SFSafari* Swift APIs.
+// These bypass the chrome.runtime.sendMessage → background service worker path.
+const NATIVE_TAB_COMMANDS = new Set([
+  "nextTab", "previousTab", "firstTab", "lastTab",
+  "visitPreviousTab", "createTab", "duplicateTab",
+  "removeTab", "restoreTab",
+  "closeTabsOnLeft", "closeTabsOnRight", "closeOtherTabs",
+  "moveTabToNewWindow", "moveTabLeft", "moveTabRight",
+]);
+
+function isNativeTabCommand(command) {
+  return NATIVE_TAB_COMMANDS.has(command);
+}
+
 class NormalMode extends KeyHandlerMode {
   init(options) {
     if (options == null) {
@@ -68,7 +82,17 @@ class NormalMode extends KeyHandlerMode {
         message: { handler: "runInTopFrame", sourceFrameId, registryEntry },
       });
     } else if (registryEntry.background) {
-      chrome.runtime.sendMessage({ handler: "runBackgroundCommand", registryEntry, count });
+      // Safari: route tab operations through native Swift APIs for better reliability.
+      // Chrome/Firefox: fall back to chrome.runtime.sendMessage → background service worker.
+      if (NativeBridge.available &&
+          isNativeTabCommand(registryEntry.command)) {
+        NativeBridge.send(registryEntry.command, {
+          count: count,
+          options: registryEntry.options,
+        });
+      } else {
+        chrome.runtime.sendMessage({ handler: "runBackgroundCommand", registryEntry, count });
+      }
     } else {
       const commandFn = NormalModeCommands[registryEntry.command];
       commandFn(count, { registryEntry });
