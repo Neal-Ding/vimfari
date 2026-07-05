@@ -99,7 +99,7 @@ if (!globalThis.isUnitTests) {
       if (response.ok) {
         chrome.storage.session.set({ vimiumCSSInChromeStorage: await response.text() });
       }
-    });
+    }).catch(() => {});
   })();
 }
 

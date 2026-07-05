@@ -204,6 +204,13 @@ function bundle() {
   // Join and apply post-processing fixes
   let output = parts.join("");
 
+  // Safari service worker lifecycle: claim clients immediately on activation
+  // This ensures the service worker responds to messages right after restart.
+  output = output.replace(
+    '"use strict";',
+    '"use strict";\n\n// Safari service worker lifecycle: claim all clients on activation\n// Safari terminates service workers after ~30s of inactivity, so we must\n// re-initialize quickly when restarted.\nself.addEventListener("activate", (event) => {\n  event.waitUntil(self.clients.claim());\n  console.debug("Vimfari: service worker activated");\n});\n'
+  );
+
   // Fix variable name collisions from concatenation:
   // 1. RegexpCache is declared in both exclusions.js (internal alias) and ranking.js (exported)
   output = output.replace(
@@ -246,11 +253,6 @@ function bundle() {
     "  }).catch(swallowError);\n}); } catch(e) { console.debug('Vimfari: webNavigation.onCommitted not supported'); }"
   );
 
-  // Guard the CSS fetch IIFE
-  output = output.replace(
-    "if (!globalThis.isUnitTests) {\n  // Cache \"content_scripts/vimium.css\" in chrome.storage.session for UI components.\n  (function () {",
-    "if (!globalThis.isUnitTests) {\n  // Cache \"content_scripts/vimium.css\" in chrome.storage.session for UI components.\n  try { (function () {"
-  );
   output = output.replace(
     "      });\n    });\n  })();",
     "      });\n    });\n  })(); } catch(e) { console.debug('Vimfari: CSS cache fetch failed', e); }"

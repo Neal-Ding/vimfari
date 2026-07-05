@@ -3,6 +3,11 @@
   "name": "Vimfari",
   "version": "1.0.0",
   "description": "The Hacker's Browser for Safari. Vimfari provides keyboard shortcuts for navigation and control in the spirit of Vim. Ported from Vimium.",
+  "browser_specific_settings": {
+    "safari": {
+      "strict_min_version": "16.4"
+    }
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
