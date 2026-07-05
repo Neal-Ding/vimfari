@@ -85,7 +85,7 @@ export class Suggestion {
       this.title = this.insertText;
     }
     let faviconHtml = "";
-    if (this.description === "tab" && !bgUtils.isFirefox()) {
+    if (this.description === "tab" && !bgUtils.isFirefox() && !bgUtils.isSafari()) {
       const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
       faviconUrl.searchParams.set("pageUrl", this.url);
       faviconUrl.searchParams.set("size", "16");

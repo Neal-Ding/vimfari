@@ -25,7 +25,19 @@ This file tracks known limitations, Safari-specific gaps, and planned improvemen
 - [ ] **`chrome.notifications` uses macOS Notification Center** — Notifications may not appear if the user has disabled them for Safari. The upgrade notification is guarded but may silently fail.
 
 ### Sessions
-- [ ] **`chrome.sessions.restore` may not be supported** — A polyfill stub is in place. Tab restoration via `X` key may not work in Safari. Verify and consider alternatives (e.g. tracking recently closed tabs ourselves).
+- [x] **`chrome.sessions.restore` not supported** — Fixed: custom closed-tab stack in `main.js`.
+  - Only tabs closed via Vimfari `x` key can be restored.
+  - Tabs closed via mouse/Safari UI cannot be tracked (no browser API).
+
+### Incognito / Private Browsing
+- [x] **`chrome.extension.inIncognitoContext` not available** — Polyfilled via `chrome.runtime.inIncognitoContext` in `safari_polyfill.js`.
+- [x] **`chrome.windows.create({incognito: true})` not supported** — Guarded in `main.js`; falls back to regular new window in Safari.
+
+### Favicons
+- [x] **`_favicon/*` not available in Safari** — Vomnibar tab suggestions skip favicon rendering (no favicon API).
+
+### Tab Operations
+- [x] **`data:text/html` URL in `chrome.tabs.create` not supported in Safari** — Uses `null` URL (same as Firefox path).
 
 ### Permissions
 - [ ] **`sessions` permission** — Verify support in Safari 16.4+. May need to be made optional.

@@ -279,10 +279,11 @@ const BackgroundCommands = {
     if (request.registryEntry.options.incognito || request.registryEntry.options.window) {
       // Firefox does not allow an incognito window to be created with the URL about:newtab. It
       // throws this error: "Illegal URL: about:newtab".
+      // Safari does not support programmatic incognito window creation.
       const urls = request.urls.filter((u) => u != UrlUtils.chromeNewTabUrl);
       const windowConfig = {
         url: urls,
-        incognito: request.registryEntry.options.incognito || false,
+        incognito: (bgUtils.isSafari()) ? false : (request.registryEntry.options.incognito || false),
       };
       await chrome.windows.create(windowConfig);
     } else {
@@ -678,6 +679,12 @@ const sendRequestHandlers = {
     await TabOperations.openUrlInNewWindow(request);
   },
   async openUrlInIncognito(request) {
+    // Safari does not support programmatic incognito window creation.
+    if (bgUtils.isSafari()) {
+      // Fall back: open in a regular new window.
+      await TabOperations.openUrlInNewWindow(request);
+      return;
+    }
     await chrome.windows.create({
       incognito: true,
       url: await UrlUtils.convertToUrl(request.url),

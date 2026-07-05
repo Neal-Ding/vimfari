@@ -86,7 +86,9 @@ export async function openUrlInNewTab(request) {
     // In Chrome, if we create a blank tab and call chrome.search.query, the omnibar is focused,
     // which we don't want. To work around that, first create an empty page. This is not needed in
     // Firefox. And in fact, firefox doesn't support a data:text URL to the chrome.tab.create API.
-    tabConfig.url = bgUtils.isFirefox() ? null : "data:text/html,<html></html>";
+    // Safari (like Firefox) does not support data:text URLs in chrome.tabs.create.
+    // Use null to create a blank tab without the data: URL workaround.
+    tabConfig.url = (bgUtils.isFirefox() || bgUtils.isSafari()) ? null : "data:text/html,<html></html>";
     newTab = await chrome.tabs.create(tabConfig);
     const query = request.url;
     await chrome.search.query({ text: query, tabId: newTab.id });

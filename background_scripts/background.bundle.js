@@ -120,6 +120,22 @@ if (_safariDetected) {
     }
   }
 
+  // ---- chrome.extension polyfill ----
+  // Safari MV3 does not support the deprecated chrome.extension API.
+  // find_mode_history.js uses chrome.extension.inIncognitoContext.
+  if (!chrome.extension) {
+    chrome.extension = {};
+  }
+  if (chrome.extension.inIncognitoContext === undefined) {
+    // Safari private browsing does not expose incognito state; default to false.
+    // Use chrome.runtime.inIncognitoContext if available (MV3 standard).
+    Object.defineProperty(chrome.extension, "inIncognitoContext", {
+      get() {
+        return chrome.runtime?.inIncognitoContext ?? false;
+      },
+    });
+  }
+
   // ---- chrome.notifications safety ----
   // Safari on macOS has limited notification support from extensions.
   // Wrap chrome.notifications.create to silently fail if it throws.
@@ -3184,7 +3200,7 @@ class Suggestion {
       this.title = this.insertText;
     }
     let faviconHtml = "";
-    if (this.description === "tab" && !bgUtils.isFirefox()) {
+    if (this.description === "tab" && !bgUtils.isFirefox() && !bgUtils.isSafari()) {
       const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
       faviconUrl.searchParams.set("pageUrl", this.url);
       faviconUrl.searchParams.set("size", "16");
@@ -4104,7 +4120,9 @@ async function openUrlInNewTab(request) {
     // In Chrome, if we create a blank tab and call chrome.search.query, the omnibar is focused,
     // which we don't want. To work around that, first create an empty page. This is not needed in
     // Firefox. And in fact, firefox doesn't support a data:text URL to the chrome.tab.create API.
-    tabConfig.url = bgUtils.isFirefox() ? null : "data:text/html,<html></html>";
+    // Safari (like Firefox) does not support data:text URLs in chrome.tabs.create.
+    // Use null to create a blank tab without the data: URL workaround.
+    tabConfig.url = (bgUtils.isFirefox() || bgUtils.isSafari()) ? null : "data:text/html,<html></html>";
     newTab = await chrome.tabs.create(tabConfig);
     const query = request.url;
     await chrome.search.query({ text: query, tabId: newTab.id });
@@ -4595,10 +4613,11 @@ const BackgroundCommands = {
     if (request.registryEntry.options.incognito || request.registryEntry.options.window) {
       // Firefox does not allow an incognito window to be created with the URL about:newtab. It
       // throws this error: "Illegal URL: about:newtab".
+      // Safari does not support programmatic incognito window creation.
       const urls = request.urls.filter((u) => u != UrlUtils.chromeNewTabUrl);
       const windowConfig = {
         url: urls,
-        incognito: request.registryEntry.options.incognito || false,
+        incognito: (bgUtils.isSafari()) ? false : (request.registryEntry.options.incognito || false),
       };
       await chrome.windows.create(windowConfig);
     } else {
@@ -4994,6 +5013,12 @@ const sendRequestHandlers = {
     await TabOperations.openUrlInNewWindow(request);
   },
   async openUrlInIncognito(request) {
+    // Safari does not support programmatic incognito window creation.
+    if (bgUtils.isSafari()) {
+      // Fall back: open in a regular new window.
+      await TabOperations.openUrlInNewWindow(request);
+      return;
+    }
     await chrome.windows.create({
       incognito: true,
       url: await UrlUtils.convertToUrl(request.url),
