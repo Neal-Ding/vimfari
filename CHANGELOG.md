@@ -1,3 +1,49 @@
+# Vimfari Changelog
+
+## v1.1.0 (2026-07-07) — Safari Compatibility
+
+### Link Hints (`f`/`F`/`yf`)
+- Fix `f` key: use `chrome.tabs.update` for navigation instead of synthetic click events to avoid Safari's popup blocker
+- Fix `yf` (copy link URL): eagerly copy during keypress to preserve transient user activation required by Safari's clipboard API
+- Fix hint markers: add `!important` to `margin`, `padding`, `border` to resist aggressive page CSS specificity
+
+### Scrolling (`j`/`k`/`d`/`u`)
+- Fix pages with `scroll-behavior: smooth`: temporarily override the CSS property before `scrollBy()` to ensure synchronous scrolling
+
+### Clipboard (`yy`/`yf`/`p`/`P`)
+- Fix `yy` (copy URL): use synchronous `window.location.href` instead of async `chrome.runtime.sendMessage` callback to preserve user activation
+- Copy uses three-tier fallback: `document.execCommand("copy")` → `navigator.clipboard.writeText()` → HUD iframe
+- Paste uses `navigator.clipboard.readText()` directly in content script
+
+### Vomnibar (`o`/`O`/`T`/`:`)
+- Fix Enter navigation: fallback `sender.tab` to active tab when `sender.tab` is null (Safari extension page iframes)
+- Fix first-open auto-focus: skip background round-trip for topFrame commands to preserve transient user activation
+- Fix Escape dismissal: add window-level Escape handler + parent-side fallback
+
+### Find Mode (`/`)
+- Fix Chinese/Japanese IME input: skip `isComposing` events for all browsers
+- Fix Enter after IME confirmation: suppress IME-confirmation Enter keypress
+- Fix Escape: hide HUD from both iframe and parent paths
+- Fix cross-origin error: try-catch `postFindFocus.focus()` in Safari
+
+### Tab Operations (`x`/`X`)
+- Fix `X` (restore tab): restore tab to its original position (`index`) in the tab bar
+
+### UI Framework
+- Fix HUD visibility: do not leave iframe `display:block` after initialization
+- Fix `setIframeVisible`: add inline `style.display` for Safari shadow-DOM cross-origin CSS
+- Add error handling to `BookmarkCompleter`, Vomnibar `activate()`, and `handleEnterKey()`
+- Pre-initialize HUD iframe for lower first-use latency
+
+### Known Limitations (Safari)
+- **Bookmarks (`b`/`B`)**: `chrome.bookmarks` API is unsupported in Safari
+- **First-open auto-focus**: Safari blocks `focus()` in cross-origin iframes without prior user interaction
+- **Paste prompt (`p`/`P`)**: Safari shows one-time permission dialog for clipboard read
+
+---
+
+## Original Vimium Changelog
+
 2.4.1, 2.4.2 (2026-03-07)
 
 - Fix issue where existing users were mistakenly opted-in to

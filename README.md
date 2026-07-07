@@ -1,23 +1,28 @@
-# Vimium - The Hacker's Browser
+# Vimfari — The Hacker's Browser for Safari
 
-Vimium is a browser extension that provides keyboard-based navigation and control of the web in the
-spirit of the Vim editor.
+Vimfari is a Safari Web Extension that provides keyboard-based navigation and control of the web in
+the spirit of the Vim editor. It is ported from [Vimium](https://github.com/philc/vimium) and
+adapted for Safari compatibility with many Safari-specific fixes and optimizations.
 
-[Watch the demo video](https://www.youtube.com/watch?v=t67Sn0RGK54).
+**Installation:**
 
-**Installation instructions:**
+- Safari (Developer Mode): Load the extension from the project directory via Safari → Develop → Web Extensions
+- Chrome/Edge/Firefox: Use the original [Vimium](https://github.com/philc/vimium)
 
-- Chrome:
-  [Chrome web store](https://chromewebstore.google.com/detail/vimium/dbepggeogbaibhgnhhndojpepiihcmeb)
-- Edge:
-  [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/vimium/djmieaghokpkpjfbpelnlkfgfjapaopa)
-- Firefox: [Firefox Add-ons](https://addons.mozilla.org/en-GB/firefox/addon/vimium-ff/)
+Vimfari's Options page can be reached via the help dialog (type `?`).
 
-To install from source, see [here](CONTRIBUTING.md#installing-from-source).
+### Safari-Specific Features
+- Native tab operations via `NativeBridge` (Swift ↔ JavaScript)
+- Safari Web Extension manifest v3
+- Cross-origin iframe compatibility handling
+- IME-friendly find mode for Chinese/Japanese input
 
-Vimium's Options page can be reached via a link on the help dialog (type `?`) or via the button next
-to Vimium on the extension pages of Chrome and Edge (`chrome://extensions`), or Firefox
-(`about:addons`).
+### Known Safari Limitations
+- **Bookmarks (`b`/`B`)**: `chrome.bookmarks` API is not supported in Safari Web Extensions
+- **First-open auto-focus**: Safari blocks programmatic focus in cross-origin extension iframes until user interaction
+- **Paste (`p`/`P`)**: One-time clipboard permission required
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ## Keyboard Bindings
 
@@ -174,10 +179,24 @@ keyboard.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-## Release Notes
+## Quick Reference
 
-See [CHANGELOG](CHANGELOG.md) for the major changes in each release.
+| Key | Action | Key | Action |
+|-----|--------|-----|--------|
+| `j`/`k` | Scroll down/up | `d`/`u` | Half page down/up |
+| `h`/`l` | Scroll left/right | `gg`/`G` | Top/bottom of page |
+| `f` | Open link in current tab | `F` | Open link in new tab |
+| `o` | Open URL/bookmark/history | `O` | ...in new tab |
+| `/` | Find in page | `n`/`N` | Next/prev match |
+| `H`/`L` | Back/forward in history | `r`/`R` | Reload / hard reload |
+| `t` | New tab | `x`/`X` | Close/restore tab |
+| `J`/`K` | Previous/next tab | `T` | Search tabs |
+| `yy` | Copy current URL | `yf` | Copy link URL |
+| `p`/`P` | Paste URL | `v`/`V` | Visual mode |
+| `i` | Insert mode | `?` | Help |
+| `m`/`` ` `` | Mark / go to mark | `gi` | Focus input |
 
 ## License
 
-Copyright (c) Phil Crosby, Ilya Sukhar. See [MIT-LICENSE.txt](MIT-LICENSE.txt) for details.
+Copyright (c) Phil Crosby, Ilya Sukhar. Vimfari modifications by Neal Ding.
+See [MIT-LICENSE.txt](MIT-LICENSE.txt) for details.
