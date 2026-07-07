@@ -123,6 +123,9 @@ class FindMode extends Mode {
   exit(event) {
     HUD.unfocusIfFocused();
     super.exit();
+    if (HUD.hudUI?.showing) {
+      HUD.hudUI.hide();
+    }
     if (event) {
       FindMode.handleEscape();
     }
@@ -319,7 +322,12 @@ class FindMode extends Mode {
     // window.find focuses the |window| that it is called on. This gives us an opportunity to
     // (re-)focus another element/window, if that isn't the behaviour we want.
     if (options.postFindFocus != null) {
-      options.postFindFocus.focus();
+      try {
+        options.postFindFocus.focus();
+      } catch (_e) {
+        // Cross-origin iframe (Safari safari-web-extension:// vs https://).
+        // focus() is blocked, but the search itself already succeeded.
+      }
     }
 
     if (options.colorSelection) {

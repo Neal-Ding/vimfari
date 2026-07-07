@@ -56,19 +56,15 @@ const HUD = {
       );
     }
     const classList = this.hudUI.iframeElement.classList;
-    if (focusable) {
-      classList.remove("vimium-non-clickable");
-      classList.add("vimium-clickable");
-      // Note(gdh1995): Chrome 74 only acknowledges text selection when a frame has been visible.
-      // See more in #3277.
-      // Note(mrmr1993): Show the HUD frame, so Firefox will actually perform the paste.
+    classList.remove("vimium-non-clickable");
+    classList.add("vimium-clickable");
+    // On Firefox, the iframe must have been visible at least once for clipboard
+    // paste to work. Make it briefly visible then re-hide it. Skip if the HUD
+    // is already showing (e.g. find mode is active) to avoid hiding it.
+    if (focusable && !this.hudUI.showing) {
       this.hudUI.setIframeVisible(true);
-      // Force the re-computation of styles, so Chrome sends a visibility change message to the
-      // child frame. See https://github.com/philc/vimium/pull/3277#issuecomment-487363284
       getComputedStyle(this.hudUI.iframeElement).display;
-    } else {
-      classList.remove("vimium-non-clickable");
-      classList.add("vimium-clickable");
+      this.hudUI.setIframeVisible(false);
     }
   },
 
@@ -90,7 +86,7 @@ const HUD = {
     this.findMode = findMode;
     await DomUtils.documentComplete();
     await this.init();
-    this.hudUI.show({ name: "showFindMode" });
+    this.hudUI.show({ name: "showFindMode" }, { focus: true });
     this.tween.fade(1.0, 150);
   },
 
@@ -168,6 +164,8 @@ const HUD = {
     if (postExit) {
       postExit();
     }
+    // Hide the HUD now that find mode is done.
+    this.hide(true, true);
   },
 
   // These commands manage copying and pasting from the clipboard in the HUD frame.
@@ -176,14 +174,59 @@ const HUD = {
   // * we don't want to disrupt the focus in the page, in case the page is listening for focus/blur
   // * events.
   // * the HUD shouldn't be active for this frame while any of the copy/paste commands are running.
-  async copyToClipboard(text) {
-    await DomUtils.documentComplete();
-    await this.init();
-    this.hudUI.postMessage({ name: "copyToClipboard", data: text });
+  // Copy text to the system clipboard.
+  //
+  // Uses document.execCommand("copy") — a synchronous approach that works across all
+  // browsers (including Safari) as long as the document has focus and transient user
+  // activation is present. We prefer this over navigator.clipboard.writeText() because
+  // the async clipboard API often fails in Safari content scripts and iframes due to
+  // stricter user-activation propagation rules.
+  copyToClipboard(text) {
+    // Method 1: execCommand("copy") — synchronous, needs user activation + focus.
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    // Use opacity:0 + pointer-events:none instead of off-screen positioning.
+    // Safari may not allow selection on elements positioned far off-screen.
+    textarea.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (ok) return;
+
+    // Method 2: navigator.clipboard.writeText() — async, needs user activation.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => {}).catch(() => {
+        // Method 3: fall back to HUD iframe. Pass focusable=false to avoid
+        // re-showing a hidden HUD via setIframeVisible(true) in init().
+        this.init(false).then(() => {
+          this.hudUI.postMessage({ name: "copyToClipboard", data: text });
+        });
+      });
+      return;
+    }
+
+    // Method 3: HUD iframe (Chrome/Firefox isolated world fallback).
+    this.init(false).then(() => {
+      this.hudUI.postMessage({ name: "copyToClipboard", data: text });
+    });
   },
 
   async pasteFromClipboard(pasteListener) {
     this.pasteListener = pasteListener;
+    // Try navigator.clipboard.readText() directly in the content script.
+    // This works in Safari where content scripts run in the page's main world.
+    // Note: Safari shows a one-time permission prompt for clipboard read.
+    if (navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        this.pasteListener(text);
+        return;
+      } catch (e) {
+        // Clipboard read failed; fall back to HUD iframe.
+      }
+    }
     await DomUtils.documentComplete();
     await this.init();
     this.tween.fade(0, 0);

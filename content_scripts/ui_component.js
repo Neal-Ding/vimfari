@@ -144,13 +144,18 @@ class UIComponent {
   }
 
   setIframeVisible(visible) {
+    if (visible) {
+      console.trace(">>> setIframeVisible(TRUE) caller");
+    }
     const classes = this.iframeElement.classList;
     if (visible) {
       classes.remove("vimium-ui-component-hidden");
       classes.add("vimium-ui-component-visible");
+      this.iframeElement.style.display = "";
     } else {
       classes.add("vimium-ui-component-hidden");
       classes.remove("vimium-ui-component-visible");
+      this.iframeElement.style.display = "none";
     }
   }
 

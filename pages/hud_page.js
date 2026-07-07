@@ -45,6 +45,13 @@ export function onKeyEvent(event) {
     (KeyboardUtils.isBackspace(event) && (inputEl.textContent.length === 0)) ||
     (event.key === "Enter") || KeyboardUtils.isEscape(event)
   ) {
+    // When IME composition ends with Enter (e.g. Chinese input),
+    // the Enter keypress is part of confirming the composition, not
+    // a command to dismiss find mode. Skip dismissal in that case.
+    if (event.key === "Enter" && findMode.ignoreNextEnter) {
+      findMode.ignoreNextEnter = false;
+      return;
+    }
     inputEl.blur();
     UIComponentMessenger.postMessage({
       name: "hideFindMode",
@@ -123,28 +130,36 @@ export const handlers = {
     inputEl.addEventListener(
       "input",
       executeQuery = function (event) {
-        // On Chrome when IME is on, the order of events is:
-        //   keydown, input.isComposing=true, keydown, input.true, ..., keydown, input.true, compositionend;
-        // while on Firefox, the order is: keydown, input.true, ..., input.true, keydown, compositionend, input.false.
-        // Therefore, check event.isComposing here, to avoid window focus changes during typing with
-        // IME, since such changes will prevent normal typing on Firefox (see #3480)
-        if (Utils.isFirefox() && event.isComposing) {
+        // During IME composition (e.g. Chinese, Japanese), skip processing.
+        // On Chrome the event order is: keydown, input.isComposing=true, ... keydown, input.true;
+        // on Firefox/Safari it is: keydown, input.true, ... compositionend, input.false.
+        // Without this check, intermediate composition states trigger searches which
+        // disrupt the IME and cause double-input or focus issues (see #3480).
+        if (event.isComposing) {
           return;
         }
-        // Replace \u00A0 (&nbsp;) with a normal space.
-        findMode.rawQuery = inputEl.textContent.replace("\u00A0", " ");
+        // Replace \u00A0 (&nbsp;) with a normal space, and trim trailing
+        // whitespace/newlines that Safari may insert in contenteditable.
+        findMode.rawQuery = inputEl.textContent.replace("\u00A0", " ").trim();
         UIComponentMessenger.postMessage({ name: "search", query: findMode.rawQuery });
       },
     );
+
+    // When IME composition ends (e.g. Chinese input confirmed with Enter),
+    // the subsequent Enter keypress would dismiss find mode immediately.
+    // Track compositionend so we can suppress that Enter.
+    inputEl.addEventListener("compositionend", () => {
+      findMode.ignoreNextEnter = true;
+    });
 
     const countEl = document.createElement("span");
     countEl.id = "hud-match-count";
     countEl.style.float = "right";
     hudEl.appendChild(countEl);
     Utils.setTimeout(TIME_TO_WAIT_FOR_IPC_MESSAGES, function () {
-      // On Firefox, the page must first be focused before the HUD input element can be focused.
-      // #3460.
-      if (Utils.isFirefox()) {
+      // On Firefox and Safari, the page must first be focused before the HUD input
+      // element can be focused. #3460
+      if (Utils.isFirefox() || Utils.isSafari()) {
         globalThis.focus();
       }
       inputEl.focus();
@@ -155,6 +170,7 @@ export const handlers = {
       partialQuery: "",
       rawQuery: "",
       executeQuery,
+      ignoreNextEnter: false,
     };
   },
 

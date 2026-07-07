@@ -74,6 +74,20 @@ const isMac = KeyboardUtils.platform === "Mac";
 const OPEN_IN_CURRENT_TAB = {
   name: "curr-tab",
   indicator: "Open link in current tab",
+  linkActivator(link) {
+    // For anchor elements with href, navigate directly in the current tab via the
+    // background script. This avoids Safari's popup blocker which can be triggered
+    // by synthetic click events (DomUtils.simulateClick).
+    if (link.href != null) {
+      chrome.runtime.sendMessage({
+        handler: "openUrlInCurrentTab",
+        url: link.href,
+      });
+    } else {
+      // Non-anchor element (button, etc.) — fall back to click simulation.
+      DomUtils.simulateClick(link);
+    }
+  },
 };
 const OPEN_IN_NEW_BG_TAB = {
   name: "bg-tab",
@@ -605,7 +619,28 @@ class LinkHintsMode {
           if (keyChar.length === 1) {
             this.tabCount = 0;
             this.markerMatcher.pushKeyChar(keyChar);
-            this.updateVisibleMarkers();
+            // Check for a unique local match before the broadcast round-trip.
+            const { linksMatched, userMightOverType } = this.markerMatcher.getMatchingHints(
+              this.hintMarkers, this.tabCount,
+            );
+            if (linksMatched.length === 1 && linksMatched[0].isLocalMarker() &&
+                !userMightOverType) {
+              // For clipboard modes, run the clipboard operation synchronously now
+              // to preserve transient user activation (Safari requires this).
+              // activateLink() will also invoke the linkActivator from the async
+              // onExit callback, but clipboard writes are idempotent.
+              if (this.mode === COPY_LINK_URL) {
+                const el = linksMatched[0].localHint.element;
+                if (el.href != null) {
+                  let url = el.href;
+                  if (url.slice(0, 7) === "mailto:") url = url.slice(7);
+                  HUD.copyToClipboard(url);
+                }
+              }
+              this.activateLink(linksMatched[0], false);
+            } else {
+              this.updateVisibleMarkers();
+            }
           } else {
             return handlerStack.suppressPropagation;
           }

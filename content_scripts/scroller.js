@@ -67,13 +67,20 @@ const performScroll = function (element, direction, amount) {
   const axisName = scrollProperties[direction].axisName;
   const before = element[axisName];
   if (element.scrollBy) {
-    // Use "auto" instead of "instant" for Safari compatibility.
-    // Safari 16+ supports "instant" but "auto" is universally supported and
-    // has the same effect (immediate scroll) when the page doesn't set
-    // scroll-behavior: smooth in CSS (which is rare).
-    const scrollArg = { behavior: "auto" };
-    scrollArg[direction === "x" ? "left" : "top"] = amount;
+    // Temporarily override scroll-behavior on the element to force instant scrolling.
+    // Pages that set scroll-behavior: smooth on <html> (e.g. huangguaba.com) cause
+    // scrollBy({behavior: "auto"}) to use smooth/animated scrolling, which is
+    // asynchronous and breaks our synchronous scroll-position checks. Setting the
+    // inline style to "auto" overrides the CSS value and ensures scrollBy is instant.
+    const prevScrollBehavior = element.style.scrollBehavior;
+    if (prevScrollBehavior !== "auto") {
+      element.style.scrollBehavior = "auto";
+    }
+    const scrollArg = { behavior: "auto", [direction === "x" ? "left" : "top"]: amount };
     element.scrollBy(scrollArg);
+    if (prevScrollBehavior !== "auto") {
+      element.style.scrollBehavior = prevScrollBehavior;
+    }
   } else {
     element[axisName] += amount;
   }

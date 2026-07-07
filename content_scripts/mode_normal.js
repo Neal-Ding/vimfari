@@ -77,10 +77,17 @@ class NormalMode extends KeyHandlerMode {
       // We never return to a UI-component frame (e.g. the help dialog), it might have lost the
       // focus.
       const sourceFrameId = globalThis.isVimiumUIComponent ? 0 : frameId;
-      chrome.runtime.sendMessage({
-        handler: "sendMessageToFrames",
-        message: { handler: "runInTopFrame", sourceFrameId, registryEntry },
-      });
+      if (DomUtils.isTopFrame()) {
+        // Already in the top frame — call the command directly to preserve transient
+        // user activation. This allows Safari to honor programmatic focus() calls
+        // inside the Vomnibar iframe (first-open auto-focus).
+        NormalModeCommands[registryEntry.command](sourceFrameId, registryEntry);
+      } else {
+        chrome.runtime.sendMessage({
+          handler: "sendMessageToFrames",
+          message: { handler: "runInTopFrame", sourceFrameId, registryEntry },
+        });
+      }
     } else if (registryEntry.background) {
       // Safari: route tab operations through native Swift APIs for better reliability.
       // Chrome/Firefox: fall back to chrome.runtime.sendMessage → background service worker.
@@ -199,16 +206,17 @@ const NormalModeCommands = {
   },
 
   copyCurrentUrl() {
-    chrome.runtime.sendMessage({ handler: "getCurrentTabUrl" }, function (url) {
-      HUD.copyToClipboard(url);
-      // This length is determined empirically based on a 350px width of the HUD. An alternate
-      // solution is to have the HUD ellipsize based on its width.
-      const maxLength = 40;
-      if (url.length > maxLength) {
-        url = url.slice(0, maxLength - 2) + "...";
-      }
-      HUD.show(`Yanked ${url}`, 2000);
-    });
+    // Use window.location.href directly instead of chrome.runtime.sendMessage.
+    // The async callback loses transient user activation in Safari, which makes
+    // clipboard operations fail. Using the synchronous window.location.href
+    // preserves the user gesture for document.execCommand("copy").
+    let url = window.location.href;
+    HUD.copyToClipboard(url);
+    const maxLength = 40;
+    if (url.length > maxLength) {
+      url = url.slice(0, maxLength - 2) + "...";
+    }
+    HUD.show(`Yanked ${url}`, 2000);
   },
 
   openCopiedUrlInNewTab(count, request) {

@@ -3423,7 +3423,8 @@ class BookmarkCompleter {
         return ranking.matches(queryTerms, suggestionUrl, suggestionTitle);
       });
     } else {
-      results = [];
+      // Return all bookmarks when the query is empty (e.g. "b" key).
+      results = [...this.bookmarks];
     }
     const suggestions = results.map((bookmark) => {
       return new Suggestion({
@@ -3443,14 +3444,46 @@ class BookmarkCompleter {
     // In case refresh() is called multiple times before chrome.bookmarks.getTree() completes, only
     // call chrome.bookmarks.getTree() once.
     if (this.bookmarksTreePromise) {
-      await this.bookmarksTreePromise;
+      try { await this.bookmarksTreePromise; } catch (_e) { /* already failed */ }
       return;
     }
 
-    this.bookmarksTreePromise = chrome.bookmarks.getTree();
-    const bookmarksTree = await this.bookmarksTreePromise;
-    this.bookmarks = this.traverseBookmarks(bookmarksTree)
-      .filter((b) => b.url != null);
+    if (!chrome.bookmarks?.getTree) {
+      this.bookmarks = [];
+      return;
+    }
+
+    // Use a self-clearing promise wrapper so that a hung getTree() doesn't
+    // block subsequent refresh() calls forever.
+    let resolvePromise;
+    this.bookmarksTreePromise = new Promise((r) => resolvePromise = r);
+
+    try {
+      const bookmarksTree = await chrome.bookmarks.getTree();
+      this.bookmarks = this.traverseBookmarks(bookmarksTree)
+        .filter((b) => b.url != null);
+
+      // Safari may return an empty tree even when bookmarks exist.
+      // Fall back to chrome.bookmarks.search which may use a different code path.
+      if (this.bookmarks.length === 0) {
+        try {
+          const found = await chrome.bookmarks.search({});
+          if (found && found.length > 0) {
+            this.bookmarks = found.filter((b) => b.url != null);
+          }
+        } catch (_e) { /* search also failed */ }
+      }
+    } catch (e) {
+      console.error("BookmarkCompleter.refresh error:", e);
+      // Fall back to search if getTree throws.
+      try {
+        const found = await chrome.bookmarks.search({});
+        this.bookmarks = (found || []).filter((b) => b.url != null);
+      } catch (_e) {
+        this.bookmarks = [];
+      }
+    }
+    resolvePromise();
     this.bookmarksTreePromise = null;
   }
 
@@ -3855,11 +3888,12 @@ class MultiCompleter {
     const query = request.query;
     const queryTerms = request.queryTerms;
 
-    // The only UX where we support showing results when there are no query terms is via
-    // Vomnibar.activateTabSelection, where we show the list of open tabs by recency.
-    const isTabCompleter = this.completers.length == 1 &&
-      this.completers[0] instanceof TabCompleter;
-    if (queryTerms.length == 0 && !isTabCompleter) {
+    // Show all results for tab and bookmark completers even with an empty query.
+    // Tab selection (T) and bookmark search (b) are designed to browse all entries.
+    const isShowAllCompleter = this.completers.length == 1 &&
+      (this.completers[0] instanceof TabCompleter ||
+       this.completers[0] instanceof BookmarkCompleter);
+    if (queryTerms.length == 0 && !isShowAllCompleter) {
       return [];
     }
 
@@ -4828,11 +4862,12 @@ async function restoreRecentlyClosedTab(request) {
   const entry = stack.pop();
   await chrome.storage.session.set({ [CLOSED_TABS_KEY]: stack });
 
-  // Open the URL in a new tab
+  // Open the URL in a new tab, restoring to its original position.
   const tab = await chrome.tabs.create({
     url: entry.url,
     windowId: entry.windowId,
     active: true,
+    index: entry.index,
   });
   return !!tab;
 }
@@ -5190,11 +5225,18 @@ Utils.addChromeRuntimeOnMessageListener(
     // Firefox when the extension is first installed, domReady and initializeFrame messages come from
     // content scripts in about:blank URLs, which have a null sender.tab. I don't know what this
     // corresponds to. Since we expect a valid sender.tab, ignore those messages.
-    if (sender.tab == null) return;
+    // Safari: sender.tab may be null for messages sent from extension page iframes
+    // (e.g. the Vomnibar). Fall back to the active tab in that case.
+    let tab = sender.tab;
+    if (tab == null && sender.id === chrome.runtime.id) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) tab = tabs[0];
+    }
+    if (tab == null) return;
     await Settings.onLoaded();
     request = Object.assign({ count: 1 }, request, {
-      tab: sender.tab,
-      tabId: sender.tab.id,
+      tab,
+      tabId: tab.id,
     });
     const handler = sendRequestHandlers[request.handler];
     const result = handler ? await handler(request, sender) : null;

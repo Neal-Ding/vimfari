@@ -446,6 +446,10 @@ async function checkIfEnabledForUrl() {
 
   if (normalMode == null) installModes();
   normalMode.setPassKeys(response.passKeys);
+  // Pre-initialize the HUD iframe so it's ready when the user activates
+  // find mode (/). This reduces the async delay on first use and helps
+  // preserve transient user activation for focus() in Safari.
+  HUD.init().catch(() => {});
   // Hide the HUD if we're not enabled.
   if (!isEnabledForUrl) HUD.hide(true, false);
 }

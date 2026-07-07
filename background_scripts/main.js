@@ -494,11 +494,12 @@ async function restoreRecentlyClosedTab(request) {
   const entry = stack.pop();
   await chrome.storage.session.set({ [CLOSED_TABS_KEY]: stack });
 
-  // Open the URL in a new tab
+  // Open the URL in a new tab, restoring to its original position.
   const tab = await chrome.tabs.create({
     url: entry.url,
     windowId: entry.windowId,
     active: true,
+    index: entry.index,
   });
   return !!tab;
 }
@@ -856,11 +857,18 @@ Utils.addChromeRuntimeOnMessageListener(
     // Firefox when the extension is first installed, domReady and initializeFrame messages come from
     // content scripts in about:blank URLs, which have a null sender.tab. I don't know what this
     // corresponds to. Since we expect a valid sender.tab, ignore those messages.
-    if (sender.tab == null) return;
+    // Safari: sender.tab may be null for messages sent from extension page iframes
+    // (e.g. the Vomnibar). Fall back to the active tab in that case.
+    let tab = sender.tab;
+    if (tab == null && sender.id === chrome.runtime.id) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) tab = tabs[0];
+    }
+    if (tab == null) return;
     await Settings.onLoaded();
     request = Object.assign({ count: 1 }, request, {
-      tab: sender.tab,
-      tabId: sender.tab.id,
+      tab,
+      tabId: tab.id,
     });
     const handler = sendRequestHandlers[request.handler];
     const result = handler ? await handler(request, sender) : null;

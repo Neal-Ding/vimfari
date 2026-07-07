@@ -308,7 +308,8 @@ export class BookmarkCompleter {
         return ranking.matches(queryTerms, suggestionUrl, suggestionTitle);
       });
     } else {
-      results = [];
+      // Return all bookmarks when the query is empty (e.g. "b" key).
+      results = [...this.bookmarks];
     }
     const suggestions = results.map((bookmark) => {
       return new Suggestion({
@@ -328,14 +329,46 @@ export class BookmarkCompleter {
     // In case refresh() is called multiple times before chrome.bookmarks.getTree() completes, only
     // call chrome.bookmarks.getTree() once.
     if (this.bookmarksTreePromise) {
-      await this.bookmarksTreePromise;
+      try { await this.bookmarksTreePromise; } catch (_e) { /* already failed */ }
       return;
     }
 
-    this.bookmarksTreePromise = chrome.bookmarks.getTree();
-    const bookmarksTree = await this.bookmarksTreePromise;
-    this.bookmarks = this.traverseBookmarks(bookmarksTree)
-      .filter((b) => b.url != null);
+    if (!chrome.bookmarks?.getTree) {
+      this.bookmarks = [];
+      return;
+    }
+
+    // Use a self-clearing promise wrapper so that a hung getTree() doesn't
+    // block subsequent refresh() calls forever.
+    let resolvePromise;
+    this.bookmarksTreePromise = new Promise((r) => resolvePromise = r);
+
+    try {
+      const bookmarksTree = await chrome.bookmarks.getTree();
+      this.bookmarks = this.traverseBookmarks(bookmarksTree)
+        .filter((b) => b.url != null);
+
+      // Safari may return an empty tree even when bookmarks exist.
+      // Fall back to chrome.bookmarks.search which may use a different code path.
+      if (this.bookmarks.length === 0) {
+        try {
+          const found = await chrome.bookmarks.search({});
+          if (found && found.length > 0) {
+            this.bookmarks = found.filter((b) => b.url != null);
+          }
+        } catch (_e) { /* search also failed */ }
+      }
+    } catch (e) {
+      console.error("BookmarkCompleter.refresh error:", e);
+      // Fall back to search if getTree throws.
+      try {
+        const found = await chrome.bookmarks.search({});
+        this.bookmarks = (found || []).filter((b) => b.url != null);
+      } catch (_e) {
+        this.bookmarks = [];
+      }
+    }
+    resolvePromise();
     this.bookmarksTreePromise = null;
   }
 
@@ -740,11 +773,12 @@ export class MultiCompleter {
     const query = request.query;
     const queryTerms = request.queryTerms;
 
-    // The only UX where we support showing results when there are no query terms is via
-    // Vomnibar.activateTabSelection, where we show the list of open tabs by recency.
-    const isTabCompleter = this.completers.length == 1 &&
-      this.completers[0] instanceof TabCompleter;
-    if (queryTerms.length == 0 && !isTabCompleter) {
+    // Show all results for tab and bookmark completers even with an empty query.
+    // Tab selection (T) and bookmark search (b) are designed to browse all entries.
+    const isShowAllCompleter = this.completers.length == 1 &&
+      (this.completers[0] instanceof TabCompleter ||
+       this.completers[0] instanceof BookmarkCompleter);
+    if (queryTerms.length == 0 && !isShowAllCompleter) {
       return [];
     }
 

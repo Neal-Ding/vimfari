@@ -59,6 +59,7 @@ class VomnibarUI {
     this.onInput = this.onInput.bind(this);
     this.update = this.update.bind(this);
     this.onHiddenCallback = null;
+    this.completions = [];
     this.initDom();
     // The user's custom search engine, if they have prefixed their query with the keyword for one
     // of their search engines.
@@ -255,8 +256,7 @@ class VomnibarUI {
         return; // Do not suppress event.
       }
     } else if ((action === "remove") && (this.selection >= 0)) {
-      const completion = this.completions[this.selection];
-      console.log(completion);
+      // No-op: Shift+Delete to remove a completion is not yet implemented.
     }
 
     event.stopImmediatePropagation();
@@ -264,6 +264,7 @@ class VomnibarUI {
   }
 
   async handleEnterKey(event) {
+    try {
     const isPrimarySearchSuggestion = (c) => c?.isPrimarySuggestion && c?.isCustomSearch;
     let query = this.input.value.trim();
 
@@ -337,6 +338,9 @@ class VomnibarUI {
       });
     } else {
       this.hide(() => this.openCompletion(completion, openInNewTab));
+    }
+    } catch (e) {
+      console.error("Vomnibar handleEnterKey error:", e);
     }
   }
 
@@ -432,8 +436,9 @@ class VomnibarUI {
   }
 
   async update() {
+    this.input.focus(); // Focus eagerly, before async work
     await this.updateCompletions();
-    this.input.focus();
+    this.input.focus(); // Focus again after completions load
   }
 
   openCompletion(completion, openInNewTab) {
@@ -467,6 +472,14 @@ class VomnibarUI {
     this.completionList.style.display = "";
 
     window.addEventListener("focus", () => this.input.focus());
+    // Dismiss the Vomnibar on Escape, even when the input is not focused.
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        this.hide();
+      }
+    });
     // A click in the vomnibar itself refocuses the input.
     this.box.addEventListener("click", (event) => {
       this.input.focus();
@@ -490,7 +503,9 @@ function init() {
       case "activate":
         const options = Object.assign({}, event.data);
         delete options.name;
-        activate(options);
+        activate(options).catch((e) => {
+          console.error("Vomnibar activate error:", e);
+        });
         break;
       default:
         Utils.assert(false, "Unrecognized message type.", event.data);

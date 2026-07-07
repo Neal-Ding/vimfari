@@ -67,6 +67,12 @@ class KeyHandlerMode extends Mode {
       HelpDialog.toggle();
       return this.suppressEvent;
     } else if (isEscape) {
+      // If the Vomnibar is open and the iframe didn't capture Escape (e.g. Safari
+      // cross-origin iframe without focus), dismiss it from the parent side.
+      if (typeof Vomnibar !== "undefined" && Vomnibar.vomnibarUI?.showing) {
+        Vomnibar.vomnibarUI.hide();
+        return this.suppressEvent;
+      }
       // Some links stay "open" after clicking, until you mouse off of them, like Wikipedia's link
       // preview popups. If the user types escape, issue a mouseout event here. See #3073.
       HintCoordinator.mouseOutOfLastClickedElement();
