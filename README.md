@@ -1,202 +1,78 @@
-# Vimfari — The Hacker's Browser for Safari
+# Vimfari — Keyboard-Based Browser Control for Safari
 
-Vimfari is a Safari Web Extension that provides keyboard-based navigation and control of the web in
-the spirit of the Vim editor. It is ported from [Vimium](https://github.com/philc/vimium) and
-adapted for Safari compatibility with many Safari-specific fixes and optimizations.
+Vimfari is a Safari Web Extension that provides Vim-style keyboard shortcuts for navigating and
+controlling the web. Based on [Vimium](https://github.com/philc/vimium), with extensive Safari
+compatibility fixes and optimizations.
 
-**Installation:**
+## Installation
 
-- Safari (Developer Mode): Load the extension from the project directory via Safari → Develop → Web Extensions
-- Chrome/Edge/Firefox: Use the original [Vimium](https://github.com/philc/vimium)
-
-Vimfari's Options page can be reached via the help dialog (type `?`).
-
-### Safari-Specific Features
-- Native tab operations via `NativeBridge` (Swift ↔ JavaScript)
-- Safari Web Extension manifest v3
-- Cross-origin iframe compatibility handling
-- IME-friendly find mode for Chinese/Japanese input
-
-### Known Safari Limitations
-- **Bookmarks (`b`/`B`)**: `chrome.bookmarks` API is not supported in Safari Web Extensions
-- **First-open auto-focus**: Safari blocks programmatic focus in cross-origin extension iframes until user interaction
-- **Paste (`p`/`P`)**: One-time clipboard permission required
-
-See [CHANGELOG.md](CHANGELOG.md) for the full version history.
-
-## Keyboard Bindings
-
-Modifier keys are specified as `<c-x>`, `<m-x>`, and `<a-x>` for ctrl+x, meta+x, and alt+x
-respectively. For shift+x and ctrl-shift-x, just type `X` and `<c-X>`. See the next section for how
-to customize these bindings.
-
-Once you have Vimium installed, you can see this list of key bindings at any time by typing `?`.
-
-Navigating the current page:
-
-    ?       show the help dialog for a list of all available keys
-    h       scroll left
-    j       scroll down
-    k       scroll up
-    l       scroll right
-    gg      scroll to top of the page
-    G       scroll to bottom of the page
-    d       scroll down half a page
-    u       scroll up half a page
-    f       open a link in the current tab
-    F       open a link in a new tab
-    r       reload
-    gs      view source
-    i       enter insert mode -- all commands will be ignored until you hit Esc to exit
-    yy      copy the current url to the clipboard
-    yf      copy a link url to the clipboard
-    gf      cycle forward to the next frame
-    gF      focus the main/top frame
-
-Navigating to new pages:
-
-    o       Open URL, bookmark, or history entry
-    O       Open URL, bookmark, history entry in a new tab
-    b       Open bookmark
-    B       Open bookmark in a new tab
-
-Using find:
-
-    /       enter find mode
-              -- type your search query and hit enter to search, or Esc to cancel
-    n       cycle forward to the next find match
-    N       cycle backward to the previous find match
-
-For advanced usage, see [regular expressions](https://github.com/philc/vimium/wiki/Find-Mode) on the
-wiki.
-
-Navigating your history:
-
-    H       go back in history
-    L       go forward in history
-
-Manipulating tabs:
-
-    J, gT   go one tab left
-    K, gt   go one tab right
-    g0      go to the first tab. Use ng0 to go to n-th tab
-    g$      go to the last tab
-    ^       visit the previously-visited tab
-    t       create tab
-    yt      duplicate current tab
-    x       close current tab
-    X       restore closed tab (i.e. unwind the 'x' command)
-    T       search through your open tabs
-    W       move current tab to new window
-    <a-p>   pin/unpin current tab
-
-Using marks:
-
-    ma, mA  set local mark "a" (global mark "A")
-    `a, `A  jump to local mark "a" (global mark "A")
-    ``      jump back to the position before the previous jump
-              -- that is, before the previous gg, G, n, N, / or `a
-
-Additional advanced browsing commands:
-
-    ]], [[  Follow the link labeled 'next' or '>' ('previous' or '<')
-              - helpful for browsing paginated sites
-    <a-f>   open multiple links in a new tab
-    gi      focus the first (or n-th) text input box on the page. Use <tab> to cycle through options.
-    gu      go up one level in the URL hierarchy
-    gU      go up to root of the URL hierarchy
-    ge      edit the current URL
-    gE      edit the current URL and open in a new tab
-    zH      scroll all the way left
-    zL      scroll all the way right
-    v       enter visual mode; use p/P to paste-and-go, use y to yank
-    V       enter visual line mode
-    R       Hard reload the page (skip the cache)
-
-Vimium supports command repetition so, for example, hitting `5t` will open 5 tabs in rapid
-succession. `<Esc>` (or `<c-[>`) will clear any partial commands in the queue and will also exit
-insert and find modes.
-
-There are additional commands which aren't included in this README; refer to the help dialog (type
-`?`) for a full list.
-
-## Custom Key Mappings
-
-You may remap or unmap any of the default key bindings in the "Custom key mappings" on the options
-page.
-
-Enter one of the following key mapping statements per line:
-
-- `map key command`: Maps a key to a Vimium command. Overrides Chrome's default behavior for that
-  key, if any.
-- `unmap key`: Unmaps a key and restores Chrome's default behavior (if any).
-- `unmapAll`: Unmaps all bindings. This is useful if you want to completely wipe Vimium's defaults
-  and start from scratch with your own setup.
-
-Examples:
-
-- `map <c-d> scrollPageDown` maps ctrl+d to scrolling the page down. Chrome's default behavior of
-  showing a bookmark dialog is suppressed.
-- `map r reload hard` maps the r key to reloading the page, and also includes the "hard" option to
-  hard-reload the page.
-- `unmap <c-d>` removes any mapping for ctrl+d and restores Chrome's default behavior.
-- `unmap r` removes any mapping for the r key.
-
-See the [docs](https://vimium.github.io/commands/) for every Vimium command and its options.
-
-You can add comments to key mappings by starting a line with `"` or `#`.
-
-The following special keys are available for mapping:
-
-- `<c-*>`, `<a-*>`, `<s-*>`, `<m-*>` for ctrl, alt, shift, and meta (command on Mac) respectively
-  with any key. Replace `*` with the key of choice.
-- `<left>`, `<right>`, `<up>`, `<down>` for the arrow keys.
-- `<f1>` through `<f12>` for the function keys.
-- `<space>` for the space key.
-- `<tab>`, `<enter>`, `<delete>`, `<backspace>`, `<insert>`, `<home>` and `<end>` for the
-  corresponding non-printable keys.
-
-Shifts are automatically detected so, for example, `<c-&>` corresponds to ctrl+shift+7 on an English
-keyboard.
-
-## How to allow Vimium to work on new tab pages
-
-- Vimium will work on new tab pages which are opened with Vimium's `createTab` command (mapped to
-  `t` by default).
-- To have Vimium work on <em>all</em> new tab pages opened by the browser (e.g. via `cmd-t` or
-  `ctrl-t` shortcuts), a companion
-  [Vimium New Tab Page extension](https://github.com/philc/vimium-new-tab/) is required.
-- Once that is installed, all new tabs will open a blank Vimium new tab page.
-
-## More documentation
-
-- [FAQ](https://github.com/philc/vimium/wiki/FAQ)
-- [Command listing](https://vimium.github.io/commands/)
-- [Vimium's GitHub wiki](https://github.com/philc/vimium/wiki): documentation for the more advanced
-  features.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+**Safari (Developer Mode):**
+1. Clone this repository
+2. Safari → 开发 → Web 扩展 → 允许无符号扩展
+3. 在 Safari → 设置 → 扩展 中启用 Vimfari
 
 ## Quick Reference
 
 | Key | Action | Key | Action |
 |-----|--------|-----|--------|
-| `j`/`k` | Scroll down/up | `d`/`u` | Half page down/up |
-| `h`/`l` | Scroll left/right | `gg`/`G` | Top/bottom of page |
+| `j` / `k` | Scroll down / up | `d` / `u` | Half page down / up |
+| `h` / `l` | Scroll left / right | `gg` / `G` | Top / bottom of page |
 | `f` | Open link in current tab | `F` | Open link in new tab |
-| `o` | Open URL/bookmark/history | `O` | ...in new tab |
-| `/` | Find in page | `n`/`N` | Next/prev match |
-| `H`/`L` | Back/forward in history | `r`/`R` | Reload / hard reload |
-| `t` | New tab | `x`/`X` | Close/restore tab |
-| `J`/`K` | Previous/next tab | `T` | Search tabs |
-| `yy` | Copy current URL | `yf` | Copy link URL |
-| `p`/`P` | Paste URL | `v`/`V` | Visual mode |
-| `i` | Insert mode | `?` | Help |
-| `m`/`` ` `` | Mark / go to mark | `gi` | Focus input |
+| `yf` | Copy link URL | `yy` | Copy current URL |
+| `o` | Open URL, bookmark, history | `O` | ...in new tab |
+| `T` | Search open tabs | `:` | Execute command |
+| `/` | Find in page | `n` / `N` | Next / previous match |
+| `H` / `L` | Back / forward in history | `r` / `R` | Reload / hard reload |
+| `t` | New tab | `x` / `X` | Close / restore tab |
+| `J` / `K` | Previous / next tab | `^` | Visit previously-visited tab |
+| `gt` / `gT` | Next / previous tab | `g0` / `g$` | First / last tab |
+| `p` / `P` | Paste and open / new tab | `v` / `V` | Visual / visual line mode |
+| `i` | Insert mode | `?` | Help dialog |
+| `m` / `` ` `` | Create mark / go to mark | `gi` | Focus text input |
+| `]]` / `[[` | Follow next / previous link | `gu` / `gU` | Up URL level / root |
+| `zi` / `zo` / `z0` | Zoom in / out / reset | `<<` / `>>` | Move tab left / right |
+
+Type `?` at any time to see all available commands.
+
+## Custom Key Mappings
+
+Add custom mappings on the Options page (reachable from the help dialog). Syntax:
+
+```
+map <key> <command> [options]   # Map a key to a command
+unmap <key>                     # Remove a key mapping
+unmapAll                        # Remove all mappings
+```
+
+Examples:
+```
+map <c-d> scrollPageDown
+map r reload hard
+unmap J
+```
+
+Special keys: `<c-*>` (ctrl), `<a-*>` (alt), `<m-*>` (meta/cmd), `<s-*>` (shift), `<left>`, `<right>`, `<up>`, `<down>`, `<f1>`–`<f12>`, `<space>`, `<tab>`, `<enter>`, `<delete>`, `<backspace>`, `<home>`, `<end>`.
+
+## Safari-Specific Features
+
+- **Native tab operations**: `NativeBridge` enables Swift-level tab control for commands like `x`/`X`/`t`/`J`/`K`
+- **IME-friendly find mode**: Chinese/Japanese input works correctly in find mode (`/`)
+- **Cross-origin iframe handling**: All Vomnibar and HUD popups work reliably in Safari's security model
+- **Clipboard**: Three-tier fallback (`execCommand` → `navigator.clipboard` → HUD iframe) ensures copy/paste works
+
+## Known Safari Limitations
+
+| Issue | Details |
+|-------|---------|
+| **Bookmarks** (`b`/`B`) | `chrome.bookmarks` API is unsupported in Safari Web Extensions |
+| **First-open auto-focus** | Safari blocks `focus()` in cross-origin extension iframes until first user interaction — click once to activate |
+| **Paste permission** (`p`/`P`) | One-time system permission dialog for clipboard read access |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome.
 
 ## License
 
-Copyright (c) Phil Crosby, Ilya Sukhar. Vimfari modifications by Neal Ding.
-See [MIT-LICENSE.txt](MIT-LICENSE.txt) for details.
+MIT. Based on [Vimium](https://github.com/philc/vimium) by Phil Crosby and Ilya Sukhar.
+Vimfari modifications by Neal Ding. See [MIT-LICENSE.txt](MIT-LICENSE.txt).
